@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { AlertCircle } from "lucide-react";
 import RecommendationPanel from "./RecommendationPanel";
 
 interface ConfigItem {
@@ -22,6 +23,14 @@ interface ConfigItem {
   description?: string;
   impact?: string;
   recommendation?: string;
+  currentConfig?: string;
+  relatedTo?: {
+    type: "ssid" | "ap-group" | "rf-profile" | "policy";
+    name: string;
+    config?: string;
+  };
+  currentCommand?: string;
+  recommendedCommand?: string;
 }
 
 interface ConfigComparisonProps {
@@ -41,6 +50,31 @@ const defaultConfigItems: ConfigItem[] = [
     impact: "Reduced security protection against modern wireless attacks",
     recommendation:
       "Upgrade to WPA3 for enhanced security features including SAE (Simultaneous Authentication of Equals)",
+    currentConfig: `wlan Corporate-Main 1
+  security wpa2
+  security ft disable
+  no security pmf
+  no security wpa3`,
+    relatedTo: {
+      type: "ssid",
+      name: "Corporate-Main",
+      config: `wlan Corporate-Main 1
+  security wpa2
+  security ft disable
+  no security pmf
+  no security wpa3
+  aaa-override
+  nac
+  radio policy
+  session-timeout 1800
+  wlan-id 1
+  wlan-profile-name Corporate-Main
+  service-policy input platinum-up
+  service-policy output platinum`,
+    },
+    currentCommand: "show wlan 1 security",
+    recommendedCommand:
+      "config wlan security wpa3 enable 1\nconfig wlan security pmf mandatory 1",
   },
   {
     id: "2",
@@ -52,147 +86,25 @@ const defaultConfigItems: ConfigItem[] = [
     impact: "Reduced network performance and increased airtime utilization",
     recommendation:
       "Increase minimum data rate to 12 Mbps to improve overall network efficiency",
-  },
-  {
-    id: "3",
-    category: "System Logging",
-    currentValue: "Local Only",
-    bestPractice: "Syslog + Local",
-    status: "mismatched",
-    description: "System logs are only stored locally",
-    impact: "Limited log retention and potential loss of critical event data",
-    recommendation:
-      "Configure external syslog server for centralized logging and long-term retention",
-  },
-  {
-    id: "4",
-    category: "DHCP",
-    currentValue: "Enabled",
-    bestPractice: "Enabled",
-    status: "matched",
-    description: "DHCP service properly configured",
-    impact: "None - configuration matches best practice",
-    recommendation: "No changes needed",
-  },
-  {
-    id: "5",
-    category: "Security - PMF",
-    currentValue: "Disabled",
-    bestPractice: "Required",
-    status: "mismatched",
-    description: "Protected Management Frames (PMF) not enforced",
-    impact: "Vulnerable to management frame attacks",
-    recommendation: "Enable PMF and set to Required for enhanced security",
-  },
-  {
-    id: "6",
-    category: "RF Management - Channel Width",
-    currentValue: "20MHz",
-    bestPractice: "40MHz",
-    status: "mismatched",
-    description: "Channel width not optimized for throughput",
-    impact: "Reduced wireless throughput and performance",
-    recommendation: "Configure 40MHz channel width for 5GHz radios",
-  },
-  {
-    id: "7",
-    category: "Security - FT",
-    currentValue: "Disabled",
-    bestPractice: "Enabled",
-    status: "mismatched",
-    description: "Fast Transition not enabled",
-    impact: "Slower roaming transitions between APs",
-    recommendation: "Enable Fast Transition for seamless roaming",
-  },
-  {
-    id: "8",
-    category: "RF Management - TPC",
-    currentValue: "Manual",
-    bestPractice: "Auto",
-    status: "mismatched",
-    description: "Transmit Power Control not set to automatic",
-    impact: "Suboptimal power management and coverage",
-    recommendation: "Enable automatic TPC for optimal power management",
-  },
-  {
-    id: "9",
-    category: "Security - ARP Caching",
-    currentValue: "Disabled",
-    bestPractice: "Enabled",
-    status: "mismatched",
-    description: "ARP caching not enabled",
-    impact: "Increased broadcast traffic and potential security risks",
-    recommendation: "Enable ARP caching to reduce broadcast traffic",
-  },
-  {
-    id: "10",
-    category: "RF Management - Load Balancing",
-    currentValue: "Disabled",
-    bestPractice: "Enabled",
-    status: "mismatched",
-    description: "Client load balancing not enabled",
-    impact: "Uneven client distribution across APs",
-    recommendation: "Enable client load balancing for better distribution",
-  },
-  {
-    id: "11",
-    category: "Security - Client Exclusion",
-    currentValue: "Disabled",
-    bestPractice: "Enabled",
-    status: "mismatched",
-    description: "Client exclusion policy not configured",
-    impact: "No protection against authentication attacks",
-    recommendation: "Enable client exclusion with appropriate timeout",
-  },
-  {
-    id: "12",
-    category: "RF Management - Band Select",
-    currentValue: "Disabled",
-    bestPractice: "Enabled",
-    status: "mismatched",
-    description: "Band selection not enabled",
-    impact: "Suboptimal client distribution across bands",
-    recommendation: "Enable band select to encourage 5GHz usage",
-  },
-  {
-    id: "13",
-    category: "Security - MFP",
-    currentValue: "Optional",
-    bestPractice: "Required",
-    status: "mismatched",
-    description: "Management Frame Protection not required",
-    impact: "Potential vulnerability to management frame attacks",
-    recommendation: "Set MFP to Required for enhanced security",
-  },
-  {
-    id: "14",
-    category: "RF Management - Coverage Hole",
-    currentValue: "Default",
-    bestPractice: "Custom",
-    status: "mismatched",
-    description: "Coverage hole detection using default settings",
-    impact: "May not detect coverage issues effectively",
-    recommendation: "Configure custom coverage hole thresholds",
-  },
-  {
-    id: "15",
-    category: "Security - Local Auth",
-    currentValue: "Enabled",
-    bestPractice: "Disabled",
-    status: "mismatched",
-    description: "Local authentication enabled instead of RADIUS",
-    impact: "Limited authentication tracking and control",
-    recommendation: "Configure RADIUS authentication for better control",
-  },
-  {
-    id: "16",
-    category: "RF Management - ED-RRM",
-    currentValue: "Disabled",
-    bestPractice: "Enabled",
-    status: "mismatched",
-    description: "Event Driven RRM not enabled",
-    impact: "Slower response to interference events",
-    recommendation: "Enable ED-RRM for dynamic interference management",
+    currentConfig: `rf-profile high-density
+  data-rates 802.11a mandatory 6
+  data-rates 802.11a supported 9 12 18 24 36 48 54`,
+    relatedTo: {
+      type: "rf-profile",
+      name: "high-density",
+      config: `rf-profile high-density
+  description "High Density RF Profile"
+  data-rates 802.11a mandatory 6
+  data-rates 802.11a supported 9 12 18 24 36 48 54
+  tx-power-min 10
+  tx-power-max 17
+  coverage-hole-detection enable
+  coverage level global 2
+  client-network-preference default`,
+    },
+    currentCommand: "show rf-profile detailed high-density",
+    recommendedCommand:
+      "config rf-profile data-rates minimum 12Mbps profile-name high-density",
   },
 ];
 
@@ -250,6 +162,13 @@ const ConfigComparison = ({
                         </p>
                       </div>
                     </div>
+                    {item.relatedTo && (
+                      <div className="mt-2">
+                        <Badge variant="outline" className="text-gray-600">
+                          {item.relatedTo.type}: {item.relatedTo.name}
+                        </Badge>
+                      </div>
+                    )}
                     {item.status === "mismatched" && (
                       <Button
                         variant="ghost"
@@ -302,6 +221,13 @@ const ConfigComparison = ({
                           </p>
                         </div>
                       </div>
+                      {item.relatedTo && (
+                        <div className="mt-2">
+                          <Badge variant="outline" className="text-gray-600">
+                            {item.relatedTo.type}: {item.relatedTo.name}
+                          </Badge>
+                        </div>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -326,21 +252,24 @@ const ConfigComparison = ({
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{selectedItem?.category}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              {selectedItem?.category}
+            </DialogTitle>
             <DialogDescription>
               Configuration Analysis Details
             </DialogDescription>
           </DialogHeader>
 
           {selectedItem && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <h4 className="font-medium mb-2">Current Configuration</h4>
+                  <h4 className="font-medium mb-2">Current Value</h4>
                   <p className="text-red-600">{selectedItem.currentValue}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-2">Best Practice</h4>
+                  <h4 className="font-medium mb-2">Recommended Value</h4>
                   <p className="text-green-600">{selectedItem.bestPractice}</p>
                 </div>
               </div>
@@ -360,6 +289,51 @@ const ConfigComparison = ({
                   <h4 className="font-medium mb-1">Recommendation</h4>
                   <p className="text-gray-600">{selectedItem.recommendation}</p>
                 </div>
+
+                {selectedItem.relatedTo && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">Configuration Context</h4>
+                      <Badge variant="outline" className="text-gray-600">
+                        {selectedItem.relatedTo.type}:{" "}
+                        {selectedItem.relatedTo.name}
+                      </Badge>
+                    </div>
+                    <pre className="p-3 bg-gray-900 text-gray-100 rounded-md text-sm font-mono overflow-x-auto">
+                      {selectedItem.relatedTo.config ||
+                        selectedItem.currentConfig}
+                    </pre>
+                  </div>
+                )}
+
+                {(selectedItem.currentCommand ||
+                  selectedItem.recommendedCommand) && (
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">WLC Commands</h4>
+                    <div className="space-y-3">
+                      {selectedItem.currentCommand && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">
+                            Current Configuration Command:
+                          </p>
+                          <pre className="bg-gray-900 text-gray-100 p-3 rounded-md text-sm font-mono">
+                            {selectedItem.currentCommand}
+                          </pre>
+                        </div>
+                      )}
+                      {selectedItem.recommendedCommand && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">
+                            Recommended Configuration Command:
+                          </p>
+                          <pre className="bg-gray-900 text-gray-100 p-3 rounded-md text-sm font-mono whitespace-pre-wrap">
+                            {selectedItem.recommendedCommand}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

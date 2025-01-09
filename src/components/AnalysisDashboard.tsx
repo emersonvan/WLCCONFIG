@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IssueSummary from "./IssueSummary";
 import ConfigComparison from "./ConfigComparison";
 import NetworkInfo from "./NetworkInfo";
 import FileUpload from "./FileUpload";
+import { parseConfigurationFile } from "@/lib/configParser";
+import type { NetworkData, ConfigItem } from "@/types/config";
 
 interface AnalysisState {
   status: "idle" | "uploading" | "analyzing" | "complete";
@@ -25,24 +27,50 @@ const AnalysisDashboard = ({
   const [analysisState, setAnalysisState] =
     useState<AnalysisState>(initialState);
   const [activeTab, setActiveTab] = useState("upload");
+  const [networkData, setNetworkData] = useState<NetworkData | null>(null);
+  const [configIssues, setConfigIssues] = useState<ConfigItem[]>([]);
   const [error, setError] = useState("");
 
-  const handleFileSelect = (file: File) => {
-    setError("");
-    setAnalysisState({
-      status: "analyzing",
-      fileName: file.name,
-    });
-    setActiveTab("analysis");
+  const handleFileSelect = useCallback(async (file: File) => {
+    try {
+      setError("");
+      setAnalysisState({
+        status: "analyzing",
+        fileName: file.name,
+      });
+      setActiveTab("analysis");
 
-    // Simulate analysis completion after 2 seconds
-    setTimeout(() => {
+      const content = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsText(file);
+      });
+
+      const { networkData: parsedData, configIssues: issues } =
+        parseConfigurationFile(content);
+
+      setNetworkData(parsedData);
+      setConfigIssues(issues);
       setAnalysisState({
         status: "complete",
         fileName: file.name,
       });
-    }, 2000);
-  };
+    } catch (err) {
+      console.error("Error processing file:", err);
+      setError(err instanceof Error ? err.message : "Error processing file");
+      setAnalysisState({
+        status: "idle",
+      });
+      setNetworkData(null);
+      setConfigIssues([]);
+    }
+  }, []);
+
+  const handleConfigSelect = useCallback((itemId: string) => {
+    // Handle config selection if needed
+    console.log("Selected config item:", itemId);
+  }, []);
 
   return (
     <div className="w-full min-h-screen bg-gray-50 p-6">
@@ -79,11 +107,14 @@ const AnalysisDashboard = ({
               <div className="space-y-6">
                 {analysisState.fileName && (
                   <div className="text-sm text-gray-600">
-                    Analyzing: {analysisState.fileName}
+                    {analysisState.status === "analyzing"
+                      ? "Analyzing: "
+                      : "Analysis complete: "}
+                    {analysisState.fileName}
                   </div>
                 )}
 
-                <IssueSummary />
+                <IssueSummary issues={configIssues} />
 
                 <Tabs defaultValue="network" className="w-full">
                   <TabsList className="mb-4">
@@ -96,11 +127,14 @@ const AnalysisDashboard = ({
                   </TabsList>
 
                   <TabsContent value="network" className="mt-0">
-                    <NetworkInfo />
+                    <NetworkInfo data={networkData} />
                   </TabsContent>
 
                   <TabsContent value="issues" className="mt-0">
-                    <ConfigComparison />
+                    <ConfigComparison
+                      configItems={configIssues}
+                      onConfigSelect={handleConfigSelect}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>
